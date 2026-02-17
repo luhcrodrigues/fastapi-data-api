@@ -1,5 +1,6 @@
-.venv/
-__pycache__/
 .env
-.env.dev
-.env.prod
+__pycache__/
+*.pyc
+app.db
+.venv/
+postgres_data/
