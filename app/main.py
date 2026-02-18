@@ -1,21 +1,40 @@
+# ==============================
+# IMPORTAÇÕES
+# ==============================
+
+# Componentes principais do FastAPI
 from fastapi import FastAPI, Depends, Query, HTTPException
+
+# Para redirecionar automaticamente a rota raiz
 from fastapi.responses import RedirectResponse
+
+# Tipo da sessão do SQLAlchemy
 from sqlalchemy.orm import Session
 
+# Configuração de banco
 from app.database import Base, engine, get_db
-from app.models import production  # IMPORTANTE para criar tabela
+
+# IMPORTANTE:
+# Esse import força o SQLAlchemy a registrar o model
+# antes da criação automática das tabelas
+from app.models import production
+
+# Schemas Pydantic (validação e resposta)
 from app.schemas.production import (
     ProductionCreate,
     ProductionResponse,
     ProductionUpdate
 )
+
+# Camada CRUD (acesso ao banco)
 from app.crud import production as production_crud
 
 
 # ==============================
-# Swagger Customization
+# CONFIGURAÇÃO DO SWAGGER
 # ==============================
 
+# Organização visual das rotas no Swagger
 tags_metadata = [
     {
         "name": "Production",
@@ -27,6 +46,7 @@ tags_metadata = [
     }
 ]
 
+# Criação da aplicação FastAPI
 app = FastAPI(
     title="Data API",
     description="""
@@ -34,7 +54,7 @@ app = FastAPI(
 
 Microserviço desenvolvido para gerenciamento de dados de produção industrial.
 
-###  Funcionalidades
+### Funcionalidades
 - CRUD completo de produção
 - Paginação de resultados
 - Persistência em PostgreSQL
@@ -49,22 +69,35 @@ Microserviço desenvolvido para gerenciamento de dados de produção industrial.
     openapi_tags=tags_metadata
 )
 
-# Criação automática das tabelas
+
+# ==============================
+# CRIAÇÃO AUTOMÁTICA DAS TABELAS
+# ==============================
+
+# Lê todos os models registrados e cria as tabelas
+# caso ainda não existam no banco
 Base.metadata.create_all(bind=engine)
 
 
 # ==============================
-# Root → Redirect para Docs
+# ROTA RAIZ
 # ==============================
 
+# Quando acessar http://localhost:8000
+# redireciona automaticamente para o Swagger
 @app.get("/", include_in_schema=False)
 def root():
     return RedirectResponse(url="/docs")
 
 
 # ==============================
-# Production Endpoints
+# CRUD DE PRODUÇÃO
 # ==============================
+
+
+# ------------------------------
+# CREATE
+# ------------------------------
 
 @app.post(
     "/v1/production",
@@ -73,11 +106,16 @@ def root():
     summary="Criar registro de produção"
 )
 def create_production(
-    production: ProductionCreate,
-    db: Session = Depends(get_db)
+    production: ProductionCreate,           # Dados validados pelo Pydantic
+    db: Session = Depends(get_db)           # Injeção automática da sessão
 ):
+    # Delegação para camada CRUD
     return production_crud.create_production(db, production)
 
+
+# ------------------------------
+# READ (LISTAGEM COM PAGINAÇÃO)
+# ------------------------------
 
 @app.get(
     "/v1/production",
@@ -85,14 +123,21 @@ def create_production(
     summary="Listar produções com paginação"
 )
 def list_productions(
-    page: int = Query(1, ge=1),
-    limit: int = Query(10, ge=1),
+    page: int = Query(1, ge=1),             # Página mínima = 1
+    limit: int = Query(10, ge=1),           # Limite mínimo = 1
     db: Session = Depends(get_db)
 ):
+    # Fórmula da paginação:
+    # skip = (pagina - 1) * limite
     skip = (page - 1) * limit
+
+    # Busca dados paginados
     data = production_crud.get_productions(db, skip=skip, limit=limit)
+
+    # Conta total de registros
     total = production_crud.count_productions(db)
 
+    # Retorno estruturado padrão enterprise
     return {
         "total": total,
         "page": page,
@@ -100,6 +145,10 @@ def list_productions(
         "data": data
     }
 
+
+# ------------------------------
+# READ (BUSCA POR ID)
+# ------------------------------
 
 @app.get(
     "/v1/production/{production_id}",
@@ -113,11 +162,16 @@ def get_production(
 ):
     production = production_crud.get_production_by_id(db, production_id)
 
+    # Tratamento de erro HTTP
     if not production:
         raise HTTPException(status_code=404, detail="Production not found")
 
     return production
 
+
+# ------------------------------
+# UPDATE
+# ------------------------------
 
 @app.put(
     "/v1/production/{production_id}",
@@ -132,11 +186,16 @@ def update_production(
 ):
     updated = production_crud.update_production(db, production_id, production)
 
+    # Se o ID não existir, retorna erro 404
     if not updated:
         raise HTTPException(status_code=404, detail="Production not found")
 
     return updated
 
+
+# ------------------------------
+# DELETE
+# ------------------------------
 
 @app.delete(
     "/v1/production/{production_id}",
@@ -149,6 +208,7 @@ def delete_production(
 ):
     deleted = production_crud.delete_production(db, production_id)
 
+    # Tratamento de erro se não existir
     if not deleted:
         raise HTTPException(status_code=404, detail="Production not found")
 

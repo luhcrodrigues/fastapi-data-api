@@ -1,3 +1,9 @@
+"""
+Script para popular o banco com dados fictícios
+para testes e demonstração.
+"""
+
+
 from app.database import SessionLocal
 from app.models.production import Production
 from datetime import date, timedelta
