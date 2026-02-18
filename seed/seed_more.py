@@ -35,7 +35,8 @@ for i in range(30):
     )
 
     dados.append(prod)
-
+    
+# Inserção em lote
 db.add_all(dados)
 db.commit()
 db.close()
