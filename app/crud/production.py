@@ -21,7 +21,7 @@ def create_production(db: Session, production: ProductionCreate):
     db.commit()                 # Confirma transação
     db.refresh(db_production)   # Atualiza objeto com dados do banco (ex: id)
 
-    return db_production
+    return db_production 
 # ==============================
 # LEITURA (Lista com Paginação)
 # ==============================
